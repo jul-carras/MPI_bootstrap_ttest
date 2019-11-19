@@ -14,10 +14,66 @@
 
 using namespace std;
 
+double make_ttest(string sample_string[]){
+	double converted[60];
+	int non_empty_test = 0;
+	int non_empty_ctrl = 0;
+	double sum_test = 0;
+	double sum_ctrl = 0;
+	double mean_test, sd_sq_test, mean_ctrl, sd_sq_ctrl, t_stat;
+	double temp = 0;
+	
+	for(int i = 1; i <= 60; i++){
+		converted[i - 1] = atof(sample_string[i].c_str());
+	}
+	
+	// get the mean for all non 0 items
+	for(int i = 0; i < 8; i++){
+		if(converted[i] != 0){
+			sum_test = sum_test + converted[i];
+			non_empty_test++;
+		}
+	}
+	mean_test = sum_test / non_empty_test;
+	
+	//calculate sd now that we have the mean
+	for(int i = 0; i < 8; i++){
+		if(converted[i] != 0){
+			temp = temp + pow(converted[i] - mean_test, 2);
+		}
+	}
+	
+	sd_sq_test = temp / (non_empty_test - 1);
+	
+	temp = 0;
+	for(int i = 8; i < 60; i++){
+		if(converted[i] != 0){
+			sum_ctrl = sum_ctrl + converted[i];
+			non_empty_ctrl++;
+		}
+	}
+	mean_ctrl = sum_ctrl / non_empty_ctrl;
+	
+	//calculate sd now that we have the mean
+	for(int i = 8; i < 60; i++){
+		if(converted[i] != 0){
+			temp = temp + pow(converted[i] - mean_ctrl, 2);
+		}
+	}
+	sd_sq_ctrl = temp / (non_empty_ctrl - 1);
+	
+	t_stat = (mean_test - mean_ctrl)/(sqrt((sd_sq_test/non_empty_test) + (sd_sq_ctrl/non_empty_ctrl)));
+	
+	cout << "Test Statistic for " << sample_string[0] << ": " << t_stat << endl;
+	
+	return t_stat;
+}
+
 int main(int argc, char* argv[])
 {
     int my_rank, source, num_nodes, groups, remaining_rows, end_interval;
 	double start_time, end_time, start_interval, a, b;
+	string sample[61];
     char my_host[MAX];
     char message_host[MSGSIZE];
 	
@@ -57,8 +113,11 @@ int main(int argc, char* argv[])
 //	cout << "Groups: " << groups << endl;
 //	cout << "Remainder Rows: " << remaining_rows << endl;
 	
-    a = start_interval + my_rank*groups + 61;
-    b = a + (my_rank + 1)*groups*61;
+    a = start_interval + my_rank*groups;
+    b = a + groups - 1;
+	
+	// tack on remaining rows to the last node
+	if(my_rank == num_nodes - 1) b = b + remaining_rows;
 	
     if (my_rank != MASTER) {
         gethostname (my_host, MAX);
@@ -66,7 +125,7 @@ int main(int argc, char* argv[])
 //		MPI_Send(an_array, array_size, MPI_INT, MASTER, 0, MPI_COMM_WORLD);
 //		end_send = MPI_Wtime();
 							
-		cout << my_host << " - a: " << a << ", b: " << b << endl;
+
 		
 //        MPI_Send(message_host, strlen(message_host) + 1, MPI_CHAR, MASTER, 1, MPI_COMM_WORLD);
 //		MPI_Send(array_metrics, 2, MPI_DOUBLE , MASTER, 2, MPI_COMM_WORLD);*/
@@ -74,6 +133,17 @@ int main(int argc, char* argv[])
     else {		
         gethostname (my_host, MAX);
         cout << my_host << " - a: " << a << ", b: " << b << endl;
+		
+		for(int i = a; i <= b; i++){
+			// skip header
+			if(i == 0) {
+				continue;
+			}
+			for(int j = 0; j < 61; j++){
+				sample[j] = row[i*61 + j];
+			}
+			make_ttest(sample);
+		}
        /*   for (source = 1; source < num_nodes; source++) {
 			MPI_Recv(an_array, array_size, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(message_host, MSGSIZE, MPI_CHAR, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -92,3 +162,4 @@ int main(int argc, char* argv[])
 
     return 0;
 }
+
