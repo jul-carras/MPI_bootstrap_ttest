@@ -88,7 +88,14 @@ double bootstrapper(sample_stats key_stats){
 	cout << "first item of sample: " << key_stats.converted[0] << endl;
 	cout << "non_zero_test: " << key_stats.non_empty_test << endl;
 	cout << "non_zero_ctrl: " << key_stats.non_empty_ctrl << endl;
-	
+	// pseudo
+	// make temp array
+	// from 0 to non_empty_test, 
+	//	sample the converted array. is it 0? try again.
+	// 	calculate stats
+	// from 0 to non_empty_ctrl
+	// sample the converted array. is it 0? try again.
+	// calculate stats
 	return 0.0;
 }
 int main(int argc, char* argv[])
