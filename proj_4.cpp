@@ -14,7 +14,16 @@
 
 using namespace std;
 
-double make_ttest(string sample_string[]){
+class sample_stats
+{
+	public:
+		double t_stat;
+		int non_empty_test;
+		int non_empty_ctrl;
+		double converted[60];
+};
+
+sample_stats make_ttest(string sample_string[], int row){
 	double converted[60];
 	int non_empty_test = 0;
 	int non_empty_ctrl = 0;
@@ -22,9 +31,12 @@ double make_ttest(string sample_string[]){
 	double sum_ctrl = 0;
 	double mean_test, sd_sq_test, mean_ctrl, sd_sq_ctrl, t_stat;
 	double temp = 0;
+	sample_stats key_stats;
 	
 	for(int i = 1; i <= 60; i++){
 		converted[i - 1] = atof(sample_string[i].c_str());
+		// add them to the returned class 
+		key_stats.converted[i - 1] = converted[i - 1];
 	}
 	
 	// get the mean for all non 0 items
@@ -64,18 +76,28 @@ double make_ttest(string sample_string[]){
 	
 	t_stat = (mean_test - mean_ctrl)/(sqrt((sd_sq_test/non_empty_test) + (sd_sq_ctrl/non_empty_ctrl)));
 	
-	cout << "Test Statistic for " << sample_string[0] << ": " << t_stat << endl;
-	
-	return t_stat;
+	key_stats.t_stat = t_stat;
+	key_stats.non_empty_ctrl = non_empty_ctrl;
+	key_stats.non_empty_test = non_empty_test;
+		
+	return key_stats;
 }
 
+double bootstrapper(sample_stats key_stats){
+	cout << "tstat: " << key_stats.t_stat << endl;
+	cout << "first item of sample: " << key_stats.converted[0] << endl;
+	cout << "non_zero_test: " << key_stats.non_empty_test << endl;
+	cout << "non_zero_ctrl: " << key_stats.non_empty_ctrl << endl;
+	
+	return 0.0;
+}
 int main(int argc, char* argv[])
 {
     int my_rank, source, num_nodes, groups, remaining_rows, end_interval;
 	double start_time, end_time, start_interval, a, b;
 	string sample[61];
     char my_host[MAX];
-    char message_host[MSGSIZE];
+	sample_stats key_stats; 
 	
 	// Read in file
 	fstream file_in;
@@ -134,7 +156,7 @@ int main(int argc, char* argv[])
         gethostname (my_host, MAX);
         cout << my_host << " - a: " << a << ", b: " << b << endl;
 		
-		for(int i = a; i <= b; i++){
+		for(int i = a; i <= a + 1; i++){
 			// skip header
 			if(i == 0) {
 				continue;
@@ -142,7 +164,8 @@ int main(int argc, char* argv[])
 			for(int j = 0; j < 61; j++){
 				sample[j] = row[i*61 + j];
 			}
-			make_ttest(sample);
+			key_stats = make_ttest(sample, i);
+			bootstrapper(key_stats);
 		}
        /*   for (source = 1; source < num_nodes; source++) {
 			MPI_Recv(an_array, array_size, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
