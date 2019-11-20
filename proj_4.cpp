@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <mpi.h>
@@ -23,7 +24,7 @@ class sample_stats
 		double converted[60];
 };
 
-sample_stats make_ttest(string sample_string[], int row){
+sample_stats make_ttest(string sample_string[]){
 	double converted[60];
 	int non_empty_test = 0;
 	int non_empty_ctrl = 0;
@@ -84,19 +85,44 @@ sample_stats make_ttest(string sample_string[], int row){
 }
 
 double bootstrapper(sample_stats key_stats){
-	cout << "tstat: " << key_stats.t_stat << endl;
-	cout << "first item of sample: " << key_stats.converted[0] << endl;
-	cout << "non_zero_test: " << key_stats.non_empty_test << endl;
-	cout << "non_zero_ctrl: " << key_stats.non_empty_ctrl << endl;
-	// pseudo
-	// make temp array
-	// from 0 to non_empty_test, 
-	//	sample the converted array. is it 0? try again.
-	// 	calculate stats
-	// from 0 to non_empty_ctrl
-	// sample the converted array. is it 0? try again.
-	// calculate stats
-	return 0.0;
+	double bootstrapped[60];
+	string bootstrapped_str[61];
+	int temp;
+	int test_count = 0;
+	int ctrl_count = 0;
+	bool index_not_empty = false;
+	sample_stats bootstrapped_stats;
+	
+	// load bootstrapped with the bootstrapped index
+	for(int i = 0; i < 60; i++){
+		index_not_empty = false;
+		// get a random index - check to see if it is empty. If so, get a new number
+		while(!index_not_empty){
+			temp = rand() % 60;
+			if(key_stats.converted[temp] != 0){
+				index_not_empty = true;
+			} 
+		}
+		// if we're in the test zone (first 8 spots) AND we have not reached
+		// the number of non empty test entries, place the value.
+		// If not zero out and let make_ttest() handle later.
+		if(i < 8 & test_count <= key_stats.non_empty_test){
+			bootstrapped[i] = key_stats.converted[temp];
+			test_count++;
+		} else if(i < 8 & i > key_stats.non_empty_test) {
+			bootstrapped[i] = 0;
+		} else if(i < 60 & ctrl_count <= key_stats.non_empty_ctrl){
+			bootstrapped[i] = key_stats.converted[temp];
+			ctrl_count++;
+		} else {
+			bootstrapped[i] = 0;
+		}
+		
+		bootstrapped_str[i + 1] = to_string(bootstrapped[i]);
+	}
+	
+	bootstrapped_stats = make_ttest(bootstrapped_str);
+	return bootstrapped_stats.t_stat;
 }
 int main(int argc, char* argv[])
 {
@@ -105,6 +131,12 @@ int main(int argc, char* argv[])
 	string sample[61];
     char my_host[MAX];
 	sample_stats key_stats; 
+	double bootstrapped_distro[500];
+	ofstream logFile;
+	char filename[64];
+	
+	
+	srand(time(NULL)); 
 	
 	// Read in file
 	fstream file_in;
@@ -163,7 +195,7 @@ int main(int argc, char* argv[])
         gethostname (my_host, MAX);
         cout << my_host << " - a: " << a << ", b: " << b << endl;
 		
-		for(int i = a; i <= a + 1; i++){
+		for(int i = a; i <= a + 10; i++){
 			// skip header
 			if(i == 0) {
 				continue;
@@ -171,8 +203,16 @@ int main(int argc, char* argv[])
 			for(int j = 0; j < 61; j++){
 				sample[j] = row[i*61 + j];
 			}
-			key_stats = make_ttest(sample, i);
-			bootstrapper(key_stats);
+
+			key_stats = make_ttest(sample);
+			for(int j = 0; j < 500; j++){
+				bootstrapped_distro[j] = bootstrapper(key_stats);
+				// logging
+				sprintf (filename, "bootstraps/bootstrapped_%d.txt", i);
+				logFile.open(filename, ios_base::app);
+				logFile << bootstrapped_distro[j] << endl;
+				logFile.close();
+			}
 		}
        /*   for (source = 1; source < num_nodes; source++) {
 			MPI_Recv(an_array, array_size, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
